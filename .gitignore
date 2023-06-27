@@ -160,3 +160,4 @@ cython_debug/
 #.idea/
 
 *.csv
+items_to_filter.py

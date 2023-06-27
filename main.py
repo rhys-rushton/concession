@@ -99,7 +99,7 @@ print(transaction_data_with_concession_match)
 possible_missed_10990s = non_10990_size.merge(transaction_data_with_concession_match, how='left', on=['File #', 'ServDate', 'Num_Billings'], indicator=True)
 possible_missed_10990s = possible_missed_10990s[possible_missed_10990s._merge != 'both']
 
-possible_missed_10990s.to_csv('Possible Missed.csv',index=True)
+#possible_missed_10990s.to_csv('Possible Missed.csv',index=True)
 print(possible_missed_10990s)
 print(potential_with_DOB)
 potential_with_DOB['ServDate_x'] = pd.to_datetime(potential_with_DOB['ServDate_x'],format='%d/%m/%Y')
@@ -107,12 +107,13 @@ final = possible_missed_10990s.merge(potential_with_DOB, how='left', left_on =['
 print(final)
 #final = final.drop(['File #', 'Patient_x_x', 'Inv #_x', 'ServDate','Date_Of_Birth_x', 'Account Payer Type_x', 'Doc_x', 'Stf_x',  'Transaction Type_x', 'Transaction Status_x','Amount_x','Fee Type_x', 'Analysis Group_x'], axis=1)
 
-final = final[['File #', 'Patient_x_x', 'Inv #_x', 'ServDate','Date_Of_Birth_x', 'Account Payer Type_x', 'Doc_x', 'Stf_x',  'Transaction Type_x', 'Transaction Status_x','Amount_x','Fee Type_x', 'Analysis Group_x']]
+final = final[['File #', 'Patient_x_x', 'Inv #_x','Item_x', 'ServDate','Date_Of_Birth_x', 'Account Payer Type_x', 'Doc_x', 'Stf_x',  'Transaction Type_x', 'Transaction Status_x','Amount_x','Fee Type_x', 'Analysis Group_x']]
 # Dictionary mapping old column names to new column names
 column_mapping = {
     'File #': 'File',
     'Patient_x_x': 'Patient',
     'Inv #_x': 'Invoice',
+    'Item_x': 'Item Number',
     'ServDate': 'Service Date',
     'Date_Of_Birth_x': 'Date of Birth',
     'Account Payer Type_x': 'Account Payer Type',
@@ -129,7 +130,7 @@ column_mapping = {
 final.rename(columns=column_mapping, inplace=True)
 
 # Columns to add
-columns_to_add = ['10990 Billed (Y/N)', 'Processed By ( Initials)', 'Notes']
+columns_to_add = ['10990 Billed (Y/N)', 'Processed By (Initials)', 'Notes']
 
 # Add columns to the DataFrame using .assign method
 final = final.assign(**{column: None for column in columns_to_add})
