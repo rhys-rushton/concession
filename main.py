@@ -5,6 +5,7 @@ import glob
 import os
 # Helper functions for script
 import helpers
+import items_to_filter as itf
 
 # Load data from the the relevant folders
 # NB the first two lines need to be changed so that they're not specific to remote computer
@@ -113,7 +114,7 @@ column_mapping = {
     'File #': 'File',
     'Patient_x_x': 'Patient',
     'Inv #_x': 'Invoice',
-    'Item_x': 'Item Number',
+    'Item_x': 'Item',
     'ServDate': 'Service Date',
     'Date_Of_Birth_x': 'Date of Birth',
     'Account Payer Type_x': 'Account Payer Type',
@@ -135,7 +136,12 @@ columns_to_add = ['10990 Billed (Y/N)', 'Processed By (Initials)', 'Notes']
 # Add columns to the DataFrame using .assign method
 final = final.assign(**{column: None for column in columns_to_add})
 
-final.to_csv('Possible Missed 10990\'s.csv', index = True)
+# no_rc_vax = merged_data[~merged_data.Item_Code.isin(rc_vac_values)]
+
+item_numbers_filtered = final[~final.Item.isin(itf.item_numbers_to_filter)]
+print(item_numbers_filtered)
+
+item_numbers_filtered.to_csv('Possible Missed 10990\'s.csv', index = False)
 
 
 

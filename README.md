@@ -13,4 +13,10 @@
     - Filter all attendances that have a corresponding 10990
     - Go through each one on Zedmed and add eligible people to dataframe of those eligible
 
-    
+- Next steps 
+    - Clean up
+    - Add a GUI - Use electron
+    - Add a way to bill item numbers
+
+
+Js front end/ typescript backend for most stuff (Servers etc) - python for data stuff and ai stuff etc (maybe some c++)
