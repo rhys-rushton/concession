@@ -75,39 +75,30 @@ potential_with_DOB = potential_with_DOB[potential_with_DOB['AGE'] == True]
 transaction_data_no_concession_w_dob = transaction_data_no_concession.merge(attendance_data_new, how='left', left_on='File #', right_on='File_Number')
 
 # Get those who are eligible 
-# Below we are cleaning the data.
+# Below we are calculating the age of the patient at the time of the encounter.
 transaction_data_no_concession_w_dob['ServDate'] = pd.to_datetime(transaction_data_no_concession_w_dob['ServDate'],format='%d/%m/%Y')
 transaction_data_no_concession_w_dob['Date_Of_Birth'] = pd.to_datetime(transaction_data_no_concession_w_dob['Date_Of_Birth'],format='%d/%m/%Y', errors='coerce')
 transaction_data_no_concession_w_dob['AGE'] = (transaction_data_no_concession_w_dob.ServDate - transaction_data_no_concession_w_dob.Date_Of_Birth)
 transaction_data_no_concession_w_dob['AGE'] = transaction_data_no_concession_w_dob['AGE'] /np.timedelta64(1,'Y')
+# Filter based on age
 transaction_data_no_concession_w_dob['AGE'] = ((transaction_data_no_concession_w_dob['AGE'] >= 66) | (transaction_data_no_concession_w_dob['AGE'] < 16))
 transaction_data_no_concession_w_dob = transaction_data_no_concession_w_dob[transaction_data_no_concession_w_dob['AGE'] == True]
-#print(transaction_data_no_concession_w_dob)
-# Get those who have a discrepence between number of non-10990s and 10990s billed
+
+# Get those who have a discrepency between number of non-10990s and 10990s billed
+# We are doing this so that we can flag those that have maybe had one 10990 but are eligible for others
+# on any one encounter. Using 'grouby' to get a count.
 missing_some_10990 = transaction_data_no_concession_w_dob[['File #', 'Patient','Inv #', 'Item', 'ServDate', 'Date_Of_Birth']]
-#print(missing_some_10990)
 missing_some_10990['Num_Billings'] = missing_some_10990.groupby(by=['File #', 'ServDate']).transform('size')
 non_10990_size = missing_some_10990
-print(non_10990_size)
 transaction_data_with_concession['ServDate'] = pd.to_datetime(transaction_data_with_concession['ServDate'],format='%d/%m/%Y')
 transaction_data_with_concession_match = transaction_data_with_concession
 transaction_data_with_concession_match['Num_Billings'] = transaction_data_with_concession.groupby(by=['File #', 'ServDate']).transform('size')
-
-
-print(transaction_data_with_concession_match)
-
-
 possible_missed_10990s = non_10990_size.merge(transaction_data_with_concession_match, how='left', on=['File #', 'ServDate', 'Num_Billings'], indicator=True)
 possible_missed_10990s = possible_missed_10990s[possible_missed_10990s._merge != 'both']
-
-#possible_missed_10990s.to_csv('Possible Missed.csv',index=True)
-print(possible_missed_10990s)
-print(potential_with_DOB)
 potential_with_DOB['ServDate_x'] = pd.to_datetime(potential_with_DOB['ServDate_x'],format='%d/%m/%Y')
 final = possible_missed_10990s.merge(potential_with_DOB, how='left', left_on =['File #', 'Inv #_x', 'ServDate', 'Item_x'], right_on=['File #_x', 'Inv #', 'ServDate_x', 'Item_x'])
-print(final)
-#final = final.drop(['File #', 'Patient_x_x', 'Inv #_x', 'ServDate','Date_Of_Birth_x', 'Account Payer Type_x', 'Doc_x', 'Stf_x',  'Transaction Type_x', 'Transaction Status_x','Amount_x','Fee Type_x', 'Analysis Group_x'], axis=1)
 
+# Clean up the data (removing uneccesary x's)
 final = final[['File #', 'Patient_x_x', 'Inv #_x','Item_x', 'ServDate','Date_Of_Birth_x', 'Account Payer Type_x', 'Doc_x', 'Stf_x',  'Transaction Type_x', 'Transaction Status_x','Amount_x','Fee Type_x', 'Analysis Group_x']]
 # Dictionary mapping old column names to new column names
 column_mapping = {
@@ -130,17 +121,17 @@ column_mapping = {
 # Renaming columns using the .rename method
 final.rename(columns=column_mapping, inplace=True)
 
-# Columns to add
+# Columns to add for people working through billings.
 columns_to_add = ['10990 Billed (Y/N)', 'Processed By (Initials)', 'Notes']
 
 # Add columns to the DataFrame using .assign method
 final = final.assign(**{column: None for column in columns_to_add})
 
-# no_rc_vax = merged_data[~merged_data.Item_Code.isin(rc_vac_values)]
 
+# Filter out non medicare item numbers.
 item_numbers_filtered = final[~final.Item.isin(itf.item_numbers_to_filter)]
-print(item_numbers_filtered)
 
+# Write final dataframe to csv
 item_numbers_filtered.to_csv('Possible Missed 10990\'s.csv', index = False)
 
 
