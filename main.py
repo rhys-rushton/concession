@@ -18,6 +18,7 @@ attendance_data_csv = glob.glob(os.path.join(attendance_data_path, "*.csv"))
 transaction_data = helpers.getCsv(transaction_data_csv)
 attendance_data = helpers.getCsv(attendance_data_csv)
 
+#print(len(transaction_data))
 
 # Sort transaction data by file number and service date. 
 transaction_data = transaction_data.sort_values(by=['File #', 'ServDate'])
@@ -66,6 +67,7 @@ potential_with_DOB['AGE'] = potential_with_DOB['AGE'] /np.timedelta64(1,'Y')
 
 # Get everyone with a DOB that is greater than 65 or less than 16
 potential_with_DOB['AGE'] = ((potential_with_DOB['AGE'] > 65) | (potential_with_DOB['AGE'] < 16))
+not_age_eligible = potential_with_DOB[potential_with_DOB['AGE'] == False]
 potential_with_DOB = potential_with_DOB[potential_with_DOB['AGE'] == True]
 
 # Currently we have all of those who have absolutely no 10990's billed. 
@@ -130,9 +132,35 @@ final = final.assign(**{column: None for column in columns_to_add})
 
 # Filter out non medicare item numbers.
 item_numbers_filtered = final[~final.Item.isin(itf.item_numbers_to_filter)]
+billing_types_filtered = item_numbers_filtered[~item_numbers_filtered['Fee Type'].isin(itf.fee_types_to_filter)]
 
 # Write final dataframe to csv
-item_numbers_filtered.to_csv('Possible Missed 10990\'s.csv', index = False)
+billing_types_filtered.to_csv('Possible Missed 10990\'s.csv', index = False)
 
 
+
+###################Shitty style 
+dsp_data_path = r'C:\Users\RRushton\Desktop\concession\DSP'
+dsp_data_csv = glob.glob(os.path.join(dsp_data_path, "*.csv"))
+
+# Read the data from the two folders. 
+dsp_data = helpers.getCsv(dsp_data_csv)
+
+print(dsp_data.dtypes)
+dsp_data = dsp_data[['FILE_NUMBER','PATIENT_HEALTH_CARE_CARD', 'AGE']]
+dsp_data['FILE_NUMBER'] = pd.to_numeric(dsp_data['FILE_NUMBER'], errors ='coerce').fillna(-1).astype(np.int64)
+print(dsp_data)
+dsp_data['PATIENT_HEALTH_CARE_CARD'] = pd.to_numeric(dsp_data['PATIENT_HEALTH_CARE_CARD'], errors ='coerce').fillna(-1).astype(np.int64)
+#dsp_data = dsp_data[dsp_data.PATIENT_HEALTH_CARE_CARD.isnull()]
+print(dsp_data)
+dsp_data['AGE']= ((dsp_data['AGE'] <= 65) & (dsp_data['AGE'] >= 16))
+dsp_data = dsp_data[dsp_data['AGE'] == True]
+dsp_data['PATIENT_HEALTH_CARE_CARD']= dsp_data['PATIENT_HEALTH_CARE_CARD'] != -1
+print(dsp_data)
+dsp_data = dsp_data[dsp_data['PATIENT_HEALTH_CARE_CARD'] == False]
+print(dsp_data)
+print(dsp_data.dtypes)
+transaction_data['File #'] = pd.to_numeric(transaction_data['File #'], errors ='coerce').fillna(-1).astype(np.int64)
+non_concession_people = pd.merge(transaction_data, dsp_data, left_on='File #', right_on='FILE_NUMBER', how='inner')
+print(non_concession_people)
 
