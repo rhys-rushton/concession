@@ -11,21 +11,22 @@ import items_to_filter as itf
 # NB the first two lines need to be changed so that they're not specific to remote computer
 transaction_data_path = r'C:\Users\RRushton\Desktop\concession\transactions'
 attendance_data_path = r'C:\Users\RRushton\Desktop\concession\attendance'
-transaction_data_csv = glob.glob(os.path.join(transaction_data_path, "*.csv"))
-attendance_data_csv = glob.glob(os.path.join(attendance_data_path, "*.csv"))
+
+transaction_data_csv = helpers.createGlob(transaction_data_path)
+attendance_data_csv = helpers.createGlob(attendance_data_path)
 
 # Read the data from the two folders. 
-transaction_data = helpers.getCsv(transaction_data_csv)
-attendance_data = helpers.getCsv(attendance_data_csv)
+transaction_data = helpers.createDataFrame(transaction_data_csv)
+attendance_data = helpers.createDataFrame(attendance_data_csv)
 
 #print(len(transaction_data))
 
 # Sort transaction data by file number and service date. 
-transaction_data = transaction_data.sort_values(by=['File #', 'ServDate'])
+transaction_data = transaction_data.sort_values(by=['File #', 'Date'])
 
 # Create data frame that has the number of attendances for a ptient on a given date
 # Use file number and date to match billings on the same date for a particular patient. 
-transaction_data_size = transaction_data.groupby(by=['File #', 'ServDate']).size()
+transaction_data_size = transaction_data.groupby(by=['File #', 'Date']).size()
 # Below is a testing line to convert the dataframe with number of billings for a patient on a given day
 # Just for testing purposes.
 #transaction_data_size.to_csv('size.csv',index=True)
@@ -78,7 +79,7 @@ transaction_data_no_concession_w_dob = transaction_data_no_concession.merge(atte
 
 # Get those who are eligible 
 # Below we are calculating the age of the patient at the time of the encounter.
-transaction_data_no_concession_w_dob['ServDate'] = pd.to_datetime(transaction_data_no_concession_w_dob['ServDate'],format='%d/%m/%Y')
+transaction_data_no_concession_w_dob['Date'] = pd.to_datetime(transaction_data_no_concession_w_dob['Date'],format='%d/%m/%Y')
 transaction_data_no_concession_w_dob['Date_Of_Birth'] = pd.to_datetime(transaction_data_no_concession_w_dob['Date_Of_Birth'],format='%d/%m/%Y', errors='coerce')
 transaction_data_no_concession_w_dob['AGE'] = (transaction_data_no_concession_w_dob.ServDate - transaction_data_no_concession_w_dob.Date_Of_Birth)
 transaction_data_no_concession_w_dob['AGE'] = transaction_data_no_concession_w_dob['AGE'] /np.timedelta64(1,'Y')
@@ -89,26 +90,26 @@ transaction_data_no_concession_w_dob = transaction_data_no_concession_w_dob[tran
 # Get those who have a discrepency between number of non-10990s and 10990s billed
 # We are doing this so that we can flag those that have maybe had one 10990 but are eligible for others
 # on any one encounter. Using 'grouby' to get a count.
-missing_some_10990 = transaction_data_no_concession_w_dob[['File #', 'Patient','Inv #', 'Item', 'ServDate', 'Date_Of_Birth']]
-missing_some_10990['Num_Billings'] = missing_some_10990.groupby(by=['File #', 'ServDate']).transform('size')
+missing_some_10990 = transaction_data_no_concession_w_dob[['File #', 'Patient','Inv #', 'Item', 'Date', 'Date_Of_Birth']]
+missing_some_10990['Num_Billings'] = missing_some_10990.groupby(by=['File #', 'Date']).transform('size')
 non_10990_size = missing_some_10990
-transaction_data_with_concession['ServDate'] = pd.to_datetime(transaction_data_with_concession['ServDate'],format='%d/%m/%Y')
+transaction_data_with_concession['Date'] = pd.to_datetime(transaction_data_with_concession['Date'],format='%d/%m/%Y')
 transaction_data_with_concession_match = transaction_data_with_concession
-transaction_data_with_concession_match['Num_Billings'] = transaction_data_with_concession.groupby(by=['File #', 'ServDate']).transform('size')
-possible_missed_10990s = non_10990_size.merge(transaction_data_with_concession_match, how='left', on=['File #', 'ServDate', 'Num_Billings'], indicator=True)
+transaction_data_with_concession_match['Num_Billings'] = transaction_data_with_concession.groupby(by=['File #', 'Date']).transform('size')
+possible_missed_10990s = non_10990_size.merge(transaction_data_with_concession_match, how='left', on=['File #', 'Date', 'Num_Billings'], indicator=True)
 possible_missed_10990s = possible_missed_10990s[possible_missed_10990s._merge != 'both']
 potential_with_DOB['ServDate_x'] = pd.to_datetime(potential_with_DOB['ServDate_x'],format='%d/%m/%Y')
-final = possible_missed_10990s.merge(potential_with_DOB, how='left', left_on =['File #', 'Inv #_x', 'ServDate', 'Item_x'], right_on=['File #_x', 'Inv #', 'ServDate_x', 'Item_x'])
+final = possible_missed_10990s.merge(potential_with_DOB, how='left', left_on =['File #', 'Inv #_x', 'Date', 'Item_x'], right_on=['File #_x', 'Inv #', 'ServDate_x', 'Item_x'])
 
 # Clean up the data (removing uneccesary x's)
-final = final[['File #', 'Patient_x_x', 'Inv #_x','Item_x', 'ServDate','Date_Of_Birth_x', 'Account Payer Type_x', 'Doc_x', 'Stf_x',  'Transaction Type_x', 'Transaction Status_x','Amount_x','Fee Type_x', 'Analysis Group_x']]
+final = final[['File #', 'Patient_x_x', 'Inv #_x','Item_x', 'Date','Date_Of_Birth_x', 'Account Payer Type_x', 'Doc_x', 'Stf_x',  'Transaction Type_x', 'Transaction Status_x','Amount_x','Fee Type_x', 'Analysis Group_x']]
 # Dictionary mapping old column names to new column names
 column_mapping = {
     'File #': 'File',
     'Patient_x_x': 'Patient',
     'Inv #_x': 'Invoice',
     'Item_x': 'Item',
-    'ServDate': 'Service Date',
+    'Date': 'Service Date',
     'Date_Of_Birth_x': 'Date of Birth',
     'Account Payer Type_x': 'Account Payer Type',
     'Doc_x': 'Document',
@@ -134,33 +135,40 @@ final = final.assign(**{column: None for column in columns_to_add})
 item_numbers_filtered = final[~final.Item.isin(itf.item_numbers_to_filter)]
 billing_types_filtered = item_numbers_filtered[~item_numbers_filtered['Fee Type'].isin(itf.fee_types_to_filter)]
 
+no_dupes = billing_types_filtered.drop_duplicates(subset=['Invoice', 'Item'])
+
+
 # Write final dataframe to csv
 billing_types_filtered.to_csv('Possible Missed 10990\'s.csv', index = False)
 
 
 
 ###################Shitty style 
-dsp_data_path = r'C:\Users\RRushton\Desktop\concession\DSP'
-dsp_data_csv = glob.glob(os.path.join(dsp_data_path, "*.csv"))
+#dsp_data_path = r'C:\Users\RRushton\Desktop\concession\DSP'
+#dsp_data_csv = glob.glob(os.path.join(dsp_data_path, "*.csv"))
 
 # Read the data from the two folders. 
-dsp_data = helpers.getCsv(dsp_data_csv)
+#dsp_data = helpers.getCsv(dsp_data_csv)
 
-print(dsp_data.dtypes)
-dsp_data = dsp_data[['FILE_NUMBER','PATIENT_HEALTH_CARE_CARD', 'AGE']]
-dsp_data['FILE_NUMBER'] = pd.to_numeric(dsp_data['FILE_NUMBER'], errors ='coerce').fillna(-1).astype(np.int64)
-print(dsp_data)
-dsp_data['PATIENT_HEALTH_CARE_CARD'] = pd.to_numeric(dsp_data['PATIENT_HEALTH_CARE_CARD'], errors ='coerce').fillna(-1).astype(np.int64)
-#dsp_data = dsp_data[dsp_data.PATIENT_HEALTH_CARE_CARD.isnull()]
-print(dsp_data)
-dsp_data['AGE']= ((dsp_data['AGE'] <= 65) & (dsp_data['AGE'] >= 16))
-dsp_data = dsp_data[dsp_data['AGE'] == True]
-dsp_data['PATIENT_HEALTH_CARE_CARD']= dsp_data['PATIENT_HEALTH_CARE_CARD'] != -1
-print(dsp_data)
-dsp_data = dsp_data[dsp_data['PATIENT_HEALTH_CARE_CARD'] == False]
-print(dsp_data)
-print(dsp_data.dtypes)
-transaction_data['File #'] = pd.to_numeric(transaction_data['File #'], errors ='coerce').fillna(-1).astype(np.int64)
-non_concession_people = pd.merge(transaction_data, dsp_data, left_on='File #', right_on='FILE_NUMBER', how='inner')
-print(non_concession_people)
+##print(dsp_data.dtypes)
+#dsp_data = dsp_data[['FILE_NUMBER','PATIENT_HEALTH_CARE_CARD', 'AGE']]
+#dsp_data['FILE_NUMBER'] = pd.to_numeric(dsp_data['FILE_NUMBER'], errors ='coerce').fillna(-1).astype(np.int64)
+#print(dsp_data)
+#dsp_data['PATIENT_HEALTH_CARE_CARD'] = pd.to_numeric(dsp_data['PATIENT_HEALTH_CARE_CARD'], errors ='coerce').fillna(-1).astype(np.int64)
+##dsp_data = dsp_data[dsp_data.PATIENT_HEALTH_CARE_CARD.isnull()]
+#print(dsp_data)
+#dsp_data['AGE']= ((dsp_data['AGE'] <= 65) & (dsp_data['AGE'] >= 16))
+#dsp_data = dsp_data[dsp_data['AGE'] == True]
+#dsp_data['PATIENT_HEALTH_CARE_CARD']= dsp_data['PATIENT_HEALTH_CARE_CARD'] != -1
+#print(dsp_data)
+#dsp_data = dsp_data[dsp_data['PATIENT_HEALTH_CARE_CARD'] == False]
+#print(dsp_data)
+#print(dsp_data.dtypes)
+#transaction_data['File #'] = pd.to_numeric(transaction_data['File #'], errors ='coerce').fillna(-1).astype(np.int64)
+#non_concession_people = pd.merge(transaction_data, dsp_data, left_on='File #', right_on='FILE_NUMBER', how='inner')
+#print(non_concession_people)
 
+# Need to filter out the duplicates from the transaction GST where -billed amout != positive billed amount 
+# to stop us from removing any item numbers where they cn be billed multiple times for a given consult. 
+# THen we do the thing outline in chat gpt - the cumcount. 
+# In the billing bot merge based on 
